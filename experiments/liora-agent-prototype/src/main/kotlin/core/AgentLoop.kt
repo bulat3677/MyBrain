@@ -42,6 +42,8 @@ class ToolRegistry(tools: List<AgentTool>) {
 
 class AgentLimitExceeded(message: String) : IllegalStateException(message)
 
+class AgentProviderFailure : IllegalStateException("Model provider request failed")
+
 class AgentLoop(
     private val provider: ModelProvider,
     private val registry: ToolRegistry,
@@ -66,7 +68,12 @@ class AgentLoop(
         var callsExecuted = 0
 
         repeat(maxTurns) {
-            val response = provider.complete(messages.toList(), registry.specs())
+            val response = try {
+                provider.complete(messages.toList(), registry.specs())
+            } catch (_: Exception) {
+                // Keep provider errors and possible credential-bearing messages out of callers.
+                throw AgentProviderFailure()
+            }
             if (response.toolCalls.isEmpty()) {
                 if (response.text.isBlank()) {
                     throw IllegalStateException("Provider returned neither text nor tool calls")
