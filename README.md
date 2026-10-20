@@ -63,7 +63,7 @@ To get started, take a look at [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 Icons Attribution:
-<a href="https://www.flaticon.com/free-icons/document" title="document icons">Document icons created by Freepik - Flaticon</a>
+<a href="https://www.flaticon.com/free-icons/document" title="document icons">Document icons created by jr.nexsus - Flaticon</a>
 <a href="https://www.flaticon.com/free-icons/list" title="list icons">List icons created by Freepik - Flaticon</a>
 <a href="https://www.flaticon.com/free-icons/3d-calendar" title="3d calendar icons">3d calendar icons created by Freepik - Flaticon</a>
 <a href="https://www.flaticon.com/free-icons/bookmark" title="bookmark icons">Bookmark icons created by Freepik - Flaticon</a>
