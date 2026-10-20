@@ -32,6 +32,7 @@ class ToolRegistry(tools: List<AgentTool>) {
 
     init {
         require(tools.all { it.name.isNotBlank() }) { "Tool names must not be blank" }
+        require(tools.all { it.description.isNotBlank() }) { "Tool descriptions must not be blank" }
         require(byName.size == tools.size) { "Tool names must be unique" }
     }
 
@@ -46,15 +47,21 @@ class AgentLoop(
     private val registry: ToolRegistry,
     private val policy: ToolPolicy,
     private val maxTurns: Int = 8,
-    private val maxToolCalls: Int = 12
+    private val maxToolCalls: Int = 12,
+    private val maxInputChars: Int = 20_000,
+    private val maxToolOutputChars: Int = 8_000
 ) {
     init {
         require(maxTurns > 0) { "maxTurns must be positive" }
         require(maxToolCalls > 0) { "maxToolCalls must be positive" }
+        require(maxInputChars > 0) { "maxInputChars must be positive" }
+        require(maxToolOutputChars > 0) { "maxToolOutputChars must be positive" }
     }
 
     fun run(userInput: String): String {
         require(userInput.isNotBlank()) { "User input must not be blank" }
+        require(userInput.length <= maxInputChars) { "User input exceeds the configured limit" }
+
         val messages = mutableListOf<AgentMessage>(AgentMessage.User(userInput))
         var callsExecuted = 0
 
@@ -64,12 +71,19 @@ class AgentLoop(
                 if (response.text.isBlank()) {
                     throw IllegalStateException("Provider returned neither text nor tool calls")
                 }
-                messages += AgentMessage.Assistant(response.text)
                 return response.text
             }
 
             if (callsExecuted + response.toolCalls.size > maxToolCalls) {
                 throw AgentLimitExceeded("Tool-call limit ($maxToolCalls) exceeded")
+            }
+
+            // Validate the entire batch before executing any tool to avoid partial side effects
+            // when a provider returns malformed or duplicated call identifiers.
+            require(response.toolCalls.all { it.id.isNotBlank() }) { "Tool-call IDs must not be blank" }
+            require(response.toolCalls.all { it.name.isNotBlank() }) { "Tool names must not be blank" }
+            require(response.toolCalls.map { it.id }.toSet().size == response.toolCalls.size) {
+                "Tool-call IDs must be unique within a response"
             }
 
             response.toolCalls.forEach { call ->
@@ -78,16 +92,17 @@ class AgentLoop(
                     tool == null -> AgentMessage.ToolResult(
                         call.id, call.name, "Tool not found: ${call.name}", true
                     )
-                    !policy.isAllowed(tool, call.arguments) -> AgentMessage.ToolResult(
+                    !isAllowedSafely(tool, call.arguments) -> AgentMessage.ToolResult(
                         call.id, call.name, "Permission denied for tool: ${call.name}", true
                     )
                     else -> try {
-                        AgentMessage.ToolResult(call.id, call.name, tool.execute(call.arguments), false)
-                    } catch (error: Exception) {
+                        val output = tool.execute(call.arguments)
                         AgentMessage.ToolResult(
-                            call.id, call.name,
-                            "Tool failed: ${error.message ?: error::class.simpleName}", true
+                            call.id, call.name, limitOutput(output), false
                         )
+                    } catch (_: Exception) {
+                        // Do not expose exception messages, stack traces, or secrets to the model.
+                        AgentMessage.ToolResult(call.id, call.name, "Tool execution failed", true)
                     }
                 }
                 messages += result
@@ -96,4 +111,15 @@ class AgentLoop(
         }
         throw AgentLimitExceeded("Agent turn limit ($maxTurns) exceeded")
     }
+
+    private fun isAllowedSafely(tool: AgentTool, arguments: Map<String, String>): Boolean =
+        try {
+            policy.isAllowed(tool, arguments)
+        } catch (_: Exception) {
+            false
+        }
+
+    private fun limitOutput(output: String): String =
+        if (output.length <= maxToolOutputChars) output
+        else output.take(maxToolOutputChars) + "…[truncated]"
 }
