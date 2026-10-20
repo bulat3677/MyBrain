@@ -81,6 +81,7 @@ Acceptance: integration tests cover provider fallback, unavailable providers, de
 
 - Confirmed: initial agent prototype exists on `liora-core/agent-prototype`.
 - Confirmed: GitHub Actions unit-test job passed for the current prototype commit.
-- In progress: review the prototype and harden contracts.
+- Confirmed: latest CI run passed after Phase 1 hardening changes; unit tests now include provider-error sanitization.
+- In progress: Phase 1 contract hardening, including argument schema validation, bounded argument sizes, and approval-hook design.
 - Unknown: live-provider tool calling, latency, costs, rate limits, and production behavior have not been tested.
-- Next milestone: Phase 1 contract hardening, then add one provider adapter.
+- Next milestone: finish deterministic Phase 1 safety tests. Provider adapter remains deferred until the core contract is reviewed.
