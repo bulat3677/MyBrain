@@ -165,6 +165,19 @@ class AgentLoopTest {
     }
 
     @Test
+    fun providerExceptionIsSanitized() {
+        val provider = object : ModelProvider {
+            override fun complete(messages: List<AgentMessage>, tools: List<ToolSpec>): ModelResponse {
+                throw IllegalStateException("authorization=secret-token")
+            }
+        }
+        val loop = AgentLoop(provider, ToolRegistry(emptyList()), ToolPolicy { _, _ -> true })
+        val error = assertFailsWith<AgentProviderFailure> { loop.run("Hello") }
+        assertEquals("Model provider request failed", error.message)
+        assertFalse(error.message.orEmpty().contains("secret-token"))
+    }
+
+    @Test
     fun blankInputIsRejected() {
         val provider = QueueProvider(ModelResponse(text = "unused"))
         val loop = AgentLoop(provider, ToolRegistry(emptyList()), ToolPolicy { _, _ -> true })
