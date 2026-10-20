@@ -1,0 +1,41 @@
+name: Liora Agent Prototype Tests
+
+on:
+  pull_request:
+    paths:
+      - "experiments/liora-agent-prototype/**"
+      - ".github/workflows/liora-agent-prototype.yml"
+  push:
+    branches:
+      - "liora-core/agent-prototype"
+    paths:
+      - "experiments/liora-agent-prototype/**"
+      - ".github/workflows/liora-agent-prototype.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Kotlin unit tests (JDK 17)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: experiments/liora-agent-prototype
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14"
+
+      - name: Run unit tests
+        run: gradle test
