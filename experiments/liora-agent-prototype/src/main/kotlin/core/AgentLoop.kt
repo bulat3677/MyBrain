@@ -68,10 +68,11 @@ class AgentLoop(
                 return response.text
             }
 
+            if (callsExecuted + response.toolCalls.size > maxToolCalls) {
+                throw AgentLimitExceeded("Tool-call limit ($maxToolCalls) exceeded")
+            }
+
             response.toolCalls.forEach { call ->
-                if (callsExecuted >= maxToolCalls) {
-                    throw AgentLimitExceeded("Tool-call limit ($maxToolCalls) exceeded")
-                }
                 val tool = registry.find(call.name)
                 val result = when {
                     tool == null -> AgentMessage.ToolResult(
